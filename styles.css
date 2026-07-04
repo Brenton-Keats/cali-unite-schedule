@@ -560,7 +560,20 @@ body {
 
 .btn.big {
   font-size: 1.15rem;
-  padding: 18px 20px;
+  padding: 14px 20px;
+}
+
+/* Who the Next/Back buttons would put on stage */
+.btn .btn-detail {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-top: 2px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .btn.full {

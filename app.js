@@ -5,8 +5,8 @@ let currentTheatre = null;
 let lastSuccessAt = null;
 let lastScrollKey = "";
 let fetching = false;
-// "Show more" toggles for collapsed sessions; keys are
-// "<done|future>:<theatre>:<session firstIndex>". Per-pageload only.
+// "Show more" toggles for folded sections; keys are
+// "sec:<theatre>:<day|session|section>". Per-pageload only.
 const expandedGroups = new Set();
 
 document.getElementById("event-name").textContent = window.CONFIG.EVENT_NAME;
@@ -44,6 +44,10 @@ function hideLoading() {
 }
 
 async function refresh() {
+  // Single-flight: with a ~2s round-trip and a 2s poll interval, polls
+  // overlap and out-of-order responses briefly rewind the UI (sections
+  // flashing open then shut). Never start a poll while one is in flight.
+  if (fetching) return;
   fetching = true;
   renderStatus();
   try {
@@ -78,14 +82,19 @@ function render() {
   const rawCi = theatre ? theatre.currentIndex : -1;
   // All rendering works from the effective position, so a withdrawn
   // competitor is never presented as current anywhere.
-  const ci = effectiveIndex(items, rawCi);
+  const eff = effectiveIndex(items, rawCi);
   const activeKey = (theatre && theatre.activeSession) || "";
   const active = hasGrouping(items)
-    ? resolveActiveSession(items, activeKey, ci)
+    ? resolveActiveSession(items, activeKey, eff)
     : null;
-  // Once the active session is finished, nothing is "current" - the list
-  // must not highlight the next session's first item prematurely.
-  const highlightIdx = active && ci > active.lastIndex ? -1 : ci;
+  // Pinned to "not started" while the raw pointer sits before the active
+  // session, so a freshly started session opens on "Starting soon".
+  const ci = sessionDisplayIndex(items, rawCi, active);
+  // Nothing is "current" while the pointer sits outside the active
+  // session (session finished, or just started and not yet begun) - the
+  // list must not highlight an item the hero isn't showing.
+  const highlightIdx =
+    active && (ci > active.lastIndex || ci < active.firstIndex) ? -1 : ci;
   renderHero(items, ci, active);
   renderSchedule(items, ci, highlightIdx);
   autoScroll(highlightIdx);
@@ -333,10 +342,6 @@ function renderGroupedList(items, ci, highlightIdx) {
     .join("");
 }
 
-function toggleBtn(key, label) {
-  return `<button class="show-toggle" data-key="${escapeHtml(key)}">${escapeHtml(label)}</button>`;
-}
-
 // One collapsible block per section. Past and future sections collapse to
 // their header row; the current section stays open with its completed
 // rows behind the toggle. The toggle is returned separately from the
@@ -346,7 +351,7 @@ function sectionBlock(sec, ci, highlightIdx) {
   const last = sec.entries[sec.entries.length - 1].index;
   const isCurrent = ci >= first && ci <= last;
   const isPast = ci > last;
-  const key = `sec:${currentTheatre}:${first}`;
+  const key = `sec:${currentTheatre}:${sectionStableKey(sec)}`;
   const expanded = expandedGroups.has(key);
 
   let btn = "";

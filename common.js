@@ -107,10 +107,20 @@ function demoApplyAction(body) {
 
 // -- API ----------------------------------------------------------------
 
+// Bounded fetch: Apps Script occasionally hangs a connection even after
+// applying the write, which would otherwise stall the UI forever.
+function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
 async function apiGet() {
   if (DEMO_MODE) return demoBuildState();
   const url = window.CONFIG.API_URL + "?t=" + Date.now();
-  const res = await fetch(url, { method: "GET", cache: "no-store" });
+  const res = await fetchWithTimeout(url, { method: "GET", cache: "no-store" }, 10000);
   if (!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -271,6 +281,15 @@ function sessionAfter(items, active) {
   return i >= 0 ? sessions[i + 1] || null : null;
 }
 
+// Display position for session-bound views. While the raw pointer sits
+// anywhere before the active session, the view is "not started" - even
+// though effectiveIndex would roll forward over a withdrawn previous
+// item straight onto the session's first competitor.
+function sessionDisplayIndex(items, rawCi, active) {
+  if (active && rawCi < active.firstIndex) return active.firstIndex - 1;
+  return effectiveIndex(items, rawCi);
+}
+
 // Where the pointer lands after a Next/Back step, skipping withdrawn
 // competitors (mirrors the backend's advance/previous semantics).
 function stepIndex(items, from, action) {
@@ -296,7 +315,9 @@ async function apiPostWithRetry(payload, attempts = 3) {
       return await apiPost(payload);
     } catch (err) {
       const transient =
-        err instanceof TypeError || /^HTTP \d/.test(String(err && err.message));
+        err instanceof TypeError ||
+        (err && err.name === "AbortError") ||
+        /^HTTP \d/.test(String(err && err.message));
       if (!transient || attempt >= attempts) throw err;
       await new Promise((resolve) => setTimeout(resolve, delay));
       delay *= 2.5;
@@ -312,14 +333,17 @@ async function apiPost(payload) {
     demoApplyAction(payload);
     return demoBuildState();
   }
-  const res = await fetch(window.CONFIG.API_URL, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const res = await fetchWithTimeout(
+    window.CONFIG.API_URL,
+    { method: "POST", body: JSON.stringify(payload) },
+    15000
+  );
   if (!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
-  return data;
+  // POST responses are adopted as state too, so they get the same
+  // normalisation + caching as polled reads.
+  return cacheState(normalizeState(data));
 }
 
 // -- State helpers ------------------------------------------------------
@@ -339,6 +363,20 @@ function pickTheatre(state) {
   const saved = localStorage.getItem(LS_KEYS.theatre);
   if (saved && state.theatres.some((t) => t.id === saved)) return saved;
   return state.theatres.length ? state.theatres[0].id : DEFAULT_THEATRE;
+}
+
+// Inline show/hide pill used by the folding lists on both pages.
+function toggleBtn(key, label) {
+  return `<button class="show-toggle" data-key="${escapeHtml(key)}">${escapeHtml(label)}</button>`;
+}
+
+// Stable fold-state key for a section: name-based, so sheet edits that
+// shift row indexes can't re-point an expansion at a different section.
+function sectionStableKey(sec) {
+  const it = sec.entries[0].item;
+  return [it.day, it.session, it.section]
+    .map((v) => String(v ?? "").trim())
+    .join("|");
 }
 
 function escapeHtml(str) {
@@ -447,6 +485,14 @@ function isWithdrawn(item) {
 // First non-withdrawn item at or after `from`; -1 if there is none.
 function nextPresentIndex(items, from) {
   for (let i = Math.max(from, 0); i < items.length; i++) {
+    if (!isWithdrawn(items[i])) return i;
+  }
+  return -1;
+}
+
+// First non-withdrawn item at or before `from`; -1 if there is none.
+function prevPresentIndex(items, from) {
+  for (let i = Math.min(from, items.length - 1); i >= 0; i--) {
     if (!isWithdrawn(items[i])) return i;
   }
   return -1;

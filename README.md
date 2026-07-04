@@ -109,8 +109,16 @@ built-in sample data so you can preview and theme them locally - just open
 
 ## Operating during the event
 
+- The hero cards are bound to one **active session** per theatre. Start a
+  session explicitly from the **Active session** dropdown, or the **Start
+  next session** button that appears once a session finishes - both ask
+  for confirmation, so a session can never begin by accident.
 - **Next ->** moves the current theatre's schedule forward; **← Back** undoes.
-  Both automatically skip withdrawn competitors.
+  Both automatically skip withdrawn competitors. Next only works inside
+  the active session: after the last competitor it shows **Session
+  finished** everywhere and disables until the next session is started.
+- As a session nears its end, the public Side stage / Up next cards make
+  way for a single "Next session" name card.
 - Tap an item under **Jump to item** to skip straight to it (e.g. after
   reordering).
 - Tap **WD** next to an item to withdraw a competitor (or **Reinstate** to

@@ -81,6 +81,16 @@ function handleAction(body) {
     setStateValue('announcement', String(body.text || ''));
   } else if (action === 'setWithdrawn') {
     setWithdrawnFlag(body);
+  } else if (action === 'setSession') {
+    // Explicit session start from the admin page: binds the hero cards to
+    // this session and moves the pointer to just before its first item.
+    var sesTheatre = String(body.theatre || DEFAULT_THEATRE);
+    var sesCount = itemsForTheatre(readSchedule(), sesTheatre).length;
+    setStateValue('activeSession::' + sesTheatre, String(body.session || ''));
+    setStateValue(
+      'currentIndex::' + sesTheatre,
+      clampIndex(parseInt(body.index, 10), sesCount)
+    );
   } else if (action === 'advance' || action === 'previous' || action === 'setIndex') {
     var theatre = String(body.theatre || DEFAULT_THEATRE);
     var items = itemsForTheatre(readSchedule(), theatre);
@@ -122,7 +132,11 @@ function buildState() {
   var theatres = theatreIds.map(function (id) {
     var raw = parseInt(stateMap['currentIndex::' + id], 10);
     var count = itemsForTheatre(schedule, id).length;
-    return { id: id, currentIndex: clampIndex(raw, count) };
+    return {
+      id: id,
+      currentIndex: clampIndex(raw, count),
+      activeSession: stateMap['activeSession::' + id] || '',
+    };
   });
 
   return {
