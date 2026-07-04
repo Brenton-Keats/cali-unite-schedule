@@ -48,6 +48,11 @@ built-in sample data so you can preview and theme them locally - just open
    Rules:
    - One row per **item** - a competitor, team, award or presentation.
      `title` is the only required column; rows with a blank title are skipped.
+   - Put **real dates** in the `day` column (recommended - format the cells
+     as dates). They display as "Wednesday 15 Jul", and each day becomes
+     its own view with day tabs that automatically open on today. Plain
+     text day names ("Monday") still work; the view then follows the live
+     session's day instead.
    - Consecutive rows with the same `session` (within a day) form a
      session; `time` is the session's rough start estimate - only the
      session start time needs to be known, filled on its first row.

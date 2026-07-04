@@ -8,6 +8,8 @@ let fetching = false;
 // "Show more" toggles for folded sections; keys are
 // "sec:<theatre>:<day|session|section>". Per-pageload only.
 const expandedGroups = new Set();
+// null = follow the live day automatically; a key = user's explicit pick.
+let selectedDayKey = null;
 
 document.getElementById("event-name").textContent = window.CONFIG.EVENT_NAME;
 document.title = window.CONFIG.EVENT_NAME + " - Schedule";
@@ -95,8 +97,17 @@ function render() {
   // list must not highlight an item the hero isn't showing.
   const highlightIdx =
     active && (ci > active.lastIndex || ci < active.firstIndex) ? -1 : ci;
+  let dayKey = "";
+  if (hasGrouping(items)) {
+    const days = groupSchedule(items);
+    const live = liveDayKey(days, active);
+    dayKey = resolveDayKey(days, selectedDayKey, live);
+    renderDayTabs(days, dayKey, live);
+  } else {
+    renderDayTabs([], "", "");
+  }
   renderHero(items, ci, active);
-  renderSchedule(items, ci, highlightIdx);
+  renderSchedule(items, ci, highlightIdx, dayKey);
   autoScroll(highlightIdx);
 }
 
@@ -279,10 +290,37 @@ function renderFlatHero(items, ci) {
   hero.innerHTML = html;
 }
 
-function renderSchedule(items, ci, highlightIdx) {
+// One view per day: tabs shown when the schedule spans multiple days.
+// Tapping the live day returns to auto-follow, so the view moves along
+// with the event again.
+function renderDayTabs(days, currentKey, live) {
+  const nav = document.getElementById("day-tabs");
+  const multi = days.length > 1;
+  nav.classList.toggle("visible", multi);
+  if (!multi) {
+    nav.innerHTML = "";
+    return;
+  }
+  nav.innerHTML = days
+    .map(
+      (d) =>
+        `<button data-day="${escapeHtml(d.key)}" class="${
+          d.key === currentKey ? "active" : ""
+        }">${escapeHtml(d.day || d.date || "Day")}</button>`
+    )
+    .join("");
+  nav.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedDayKey = btn.dataset.day === live ? null : btn.dataset.day;
+      render();
+    });
+  });
+}
+
+function renderSchedule(items, ci, highlightIdx, dayKey) {
   const container = document.getElementById("schedule");
   if (hasGrouping(items)) {
-    container.innerHTML = renderGroupedList(items, ci, highlightIdx);
+    container.innerHTML = renderGroupedList(items, ci, highlightIdx, dayKey);
   } else {
     container.innerHTML = renderFlatList(items, ci, highlightIdx);
   }
@@ -330,13 +368,21 @@ function renderFlatList(items, ci, highlightIdx) {
 // subheadings → one row per item. Past and future sessions collapse
 // behind "Show more" buttons; the current session is always expanded,
 // with its completed items tucked behind their own toggle.
-function renderGroupedList(items, ci, highlightIdx) {
-  return groupSchedule(items)
+function renderGroupedList(items, ci, highlightIdx, dayKey) {
+  const days = groupSchedule(items);
+  // Day views: render only the selected day; the tabs already name it,
+  // so the in-list day heading is dropped. Single-day schedules keep the
+  // old all-in-one rendering.
+  const filtered =
+    dayKey && days.length > 1 ? days.filter((d) => d.key === dayKey) : days;
+  const showHeading = filtered.length === days.length;
+  return filtered
     .map((dayGroup) => {
       const sessions = dayGroup.sessions
         .map((ses) => renderSession(ses, ci, highlightIdx))
         .join("");
-      const heading = dayGroup.day ? `<h2>${escapeHtml(dayGroup.day)}</h2>` : "";
+      const heading =
+        showHeading && dayGroup.day ? `<h2>${escapeHtml(dayGroup.day)}</h2>` : "";
       return `<div class="day-group">${heading}${sessions}</div>`;
     })
     .join("");
@@ -438,16 +484,15 @@ function renderStatus() {
     bar.classList.toggle("error", !state);
     return;
   }
-  if (fetching) {
-    bar.textContent = "Updating…";
-    bar.classList.remove("error");
-    return;
-  }
+  // Purely response-age based: "Live" while responses are fresh (<3s),
+  // the age once they aren't - in-flight requests don't change the text.
   const age = Math.round((Date.now() - lastSuccessAt) / 1000);
   const stale = age > (window.CONFIG.POLL_MS / 1000) * 3;
   bar.textContent = stale
     ? `Reconnecting… (last update ${age}s ago)`
-    : `Live · updated ${age}s ago`;
+    : age < 3
+      ? "Live"
+      : `Last updated ${age}s ago`;
   bar.classList.toggle("error", stale);
 }
 

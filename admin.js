@@ -21,8 +21,14 @@ let pendingAnnouncements = 0;
 // "Show more" toggles for folded sections in the jump list, mirroring the
 // public page. Keys are "sec:<theatre>:<day|session|section>".
 const expandedGroups = new Set();
+// null = follow the live day automatically; a key = operator's pick.
+let selectedDayKey = null;
 
 const PENDING_STAGE_LABEL = "Sending on stage";
+
+// Admins poll faster than the public display; falls back to POLL_MS if
+// ADMIN_POLL_MS isn't configured.
+const ADMIN_POLL_MS = window.CONFIG.ADMIN_POLL_MS || window.CONFIG.POLL_MS;
 
 const els = {
   gate: document.getElementById("gate"),
@@ -120,7 +126,7 @@ function enterPanel() {
   }
   renderStatus();
   if (!pollTimer) {
-    pollTimer = setInterval(refresh, window.CONFIG.POLL_MS);
+    pollTimer = setInterval(refresh, ADMIN_POLL_MS);
     setInterval(renderStatus, 1000);
   }
 }
@@ -664,6 +670,31 @@ function jumpSectionBlock(sec, ci, highlightIdx, pendingTagIdx) {
   return { header, btn, rows };
 }
 
+function renderDayTabs(days, currentKey, live) {
+  const nav = document.getElementById("day-tabs");
+  const multi = days.length > 1;
+  nav.classList.toggle("visible", multi);
+  if (!multi) {
+    nav.innerHTML = "";
+    return;
+  }
+  nav.innerHTML = days
+    .map(
+      (d) =>
+        `<button data-day="${escapeHtml(d.key)}" class="${
+          d.key === currentKey ? "active" : ""
+        }">${escapeHtml(d.day || d.date || "Day")}</button>`
+    )
+    .join("");
+  nav.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      // Picking the live day resumes auto-follow.
+      selectedDayKey = btn.dataset.day === live ? null : btn.dataset.day;
+      render();
+    });
+  });
+}
+
 function renderJumpList() {
   const items = currentItems();
   const { active, ci } = sessionView(items);
@@ -682,7 +713,14 @@ function renderJumpList() {
       ? pendingIndexOp.index
       : -1;
   if (hasGrouping(items)) {
-    els.jumpList.innerHTML = groupSchedule(items)
+    const days = groupSchedule(items);
+    const live = liveDayKey(days, active);
+    const dayKey = resolveDayKey(days, selectedDayKey, live);
+    renderDayTabs(days, dayKey, live);
+    const filteredDays =
+      dayKey && days.length > 1 ? days.filter((d) => d.key === dayKey) : days;
+    const showHeading = filteredDays.length === days.length;
+    els.jumpList.innerHTML = filteredDays
       .map((dayGroup) => {
         const sessions = dayGroup.sessions
           .map((ses) => {
@@ -715,13 +753,15 @@ function renderJumpList() {
             return `<div class="session-group">${header}${sections}</div>`;
           })
           .join("");
-        const heading = dayGroup.day ? `<h2>${escapeHtml(dayGroup.day)}</h2>` : "";
+        const heading =
+          showHeading && dayGroup.day ? `<h2>${escapeHtml(dayGroup.day)}</h2>` : "";
         return `<div class="day-group">${heading}${sessions}</div>`;
       })
       .join("");
     wireJumpButtons(items);
     return;
   }
+  renderDayTabs([], "", "");
   const groups = groupByDay(items);
   els.jumpList.innerHTML = groups
     .map((group) => {
@@ -795,21 +835,17 @@ function renderStatus() {
     els.statusBar.classList.toggle("error", !state);
     return;
   }
-  if (pendingActions > 0) {
-    els.statusBar.textContent = "Saving…";
-    els.statusBar.classList.remove("error");
-    return;
-  }
-  if (fetching) {
-    els.statusBar.textContent = "Updating…";
-    els.statusBar.classList.remove("error");
-    return;
-  }
+  // Purely response-age based: "Live" while responses are fresh (<3s) -
+  // which, at the admin poll rate, is the steady state - and the age once
+  // they aren't. In-flight requests don't change the text; the pending
+  // markers already communicate saving.
   const age = Math.round((Date.now() - lastSuccessAt) / 1000);
-  const stale = age > (window.CONFIG.POLL_MS / 1000) * 3;
+  const stale = age > (ADMIN_POLL_MS / 1000) * 3;
   els.statusBar.textContent = stale
     ? `Reconnecting… (last update ${age}s ago)`
-    : `Live · updated ${age}s ago`;
+    : age < 3
+      ? "Live"
+      : `Last updated ${age}s ago`;
   els.statusBar.classList.toggle("error", stale);
 }
 

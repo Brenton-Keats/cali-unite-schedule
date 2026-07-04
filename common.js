@@ -17,7 +17,7 @@ const DEMO_MODE = !window.CONFIG.API_URL;
 
 const DEMO_STATE = {
   schedule: [
-    { theatre: "Main Stage", day: "Monday", session: "Morning session", time: "9:00 AM", section: "", title: "Welcome & housekeeping" },
+    { theatre: "Main Stage", day: "Monday", date: "2026-07-13", session: "Morning session", time: "9:00 AM", section: "", title: "Welcome & housekeeping" },
     { theatre: "Main Stage", day: "Monday", session: "", time: "", section: "Junior Rods", competitor_number: "12", title: "Ava Thompson" },
     { theatre: "Main Stage", day: "Monday", session: "", time: "", section: "Junior Rods", competitor_number: "14", title: "Mia Chen" },
     { theatre: "Main Stage", day: "Monday", session: "", time: "", section: "Junior Rods", competitor_number: "17", title: "Ruby Patel", withdrawn: "yes" },
@@ -26,12 +26,12 @@ const DEMO_STATE = {
     { theatre: "Main Stage", day: "Monday", session: "Afternoon session", time: "1:30 PM", section: "Team Displays", title: "Harbour City Seniors" },
     { theatre: "Main Stage", day: "Monday", session: "", time: "", section: "Team Displays", title: "Northside Demo Team" },
     { theatre: "Main Stage", day: "Monday", session: "", time: "", section: "Awards", title: "Morning awards presentation" },
-    { theatre: "Main Stage", day: "Tuesday", session: "Finals", time: "9:30 AM", section: "Champions Rods", competitor_number: "31", title: "Grace Holland" },
+    { theatre: "Main Stage", day: "Tuesday", date: "2026-07-14", session: "Finals", time: "9:30 AM", section: "Champions Rods", competitor_number: "31", title: "Grace Holland" },
     { theatre: "Main Stage", day: "Tuesday", session: "", time: "", section: "Champions Rods", competitor_number: "32", title: "Poppy Irwin" },
     { theatre: "Main Stage", day: "Tuesday", session: "Closing", time: "2:00 PM", section: "", title: "Awards & thank-yous" },
-    { theatre: "Studio", day: "Monday", session: "Studio morning", time: "9:30 AM", section: "Subjunior Freearm", competitor_number: "41", title: "Isla Brown" },
+    { theatre: "Studio", day: "Monday", date: "2026-07-13", session: "Studio morning", time: "9:30 AM", section: "Subjunior Freearm", competitor_number: "41", title: "Isla Brown" },
     { theatre: "Studio", day: "Monday", session: "", time: "", section: "Subjunior Freearm", competitor_number: "42", title: "Zoe Nguyen" },
-    { theatre: "Studio", day: "Tuesday", session: "Open floor", time: "10:00 AM", section: "", title: "Free practice" },
+    { theatre: "Studio", day: "Tuesday", date: "2026-07-14", session: "Open floor", time: "10:00 AM", section: "", title: "Free practice" },
   ],
   stateMap: {
     "currentIndex::Main Stage": 2,
@@ -120,7 +120,9 @@ function fetchWithTimeout(url, options, timeoutMs) {
 async function apiGet() {
   if (DEMO_MODE) return demoBuildState();
   const url = window.CONFIG.API_URL + "?t=" + Date.now();
-  const res = await fetchWithTimeout(url, { method: "GET", cache: "no-store" }, 10000);
+  // Generous timeout: Apps Script cold starts can take 10s+; single-flight
+  // polling means a slow request never stacks with the next one.
+  const res = await fetchWithTimeout(url, { method: "GET", cache: "no-store" }, 20000);
   if (!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -174,9 +176,14 @@ function normalizeState(state) {
         String(item.theatre ?? "").trim() === String(prev.theatre ?? "").trim();
       if (sameTheatre && "day" in item && String(item.day ?? "").trim() === "") {
         item.day = prev.day;
+        item.date = prev.date;
       }
       const sameDay =
         String(item.day ?? "").trim() === String(prev.day ?? "").trim();
+      // The machine-readable date rides along with the day label.
+      if (sameTheatre && sameDay && String(item.date ?? "").trim() === "") {
+        item.date = prev.date;
+      }
       if (
         sameTheatre &&
         sameDay &&
@@ -272,6 +279,39 @@ function resolveActiveSession(items, activeKey, effCi) {
   );
   if (byPointer) return byPointer;
   return effCi < 0 ? sessions[0] : sessions[sessions.length - 1];
+}
+
+// -- Day views -------------------------------------------------------------
+// Each day renders as its own view. The default follows the live day:
+// the active session's day, else the device's current date.
+
+function todayIsoLocal() {
+  const d = new Date();
+  return (
+    d.getFullYear() +
+    "-" +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(d.getDate()).padStart(2, "0")
+  );
+}
+
+function liveDayKey(days, active) {
+  if (active) {
+    const d = days.find((dg) =>
+      dg.sessions.some((s) => s.firstIndex === active.firstIndex)
+    );
+    if (d) return d.key;
+  }
+  const today = todayIsoLocal();
+  const d = days.find((dg) => dg.date === today);
+  return d ? d.key : "";
+}
+
+function resolveDayKey(days, selectedKey, live) {
+  if (selectedKey && days.some((d) => d.key === selectedKey)) return selectedKey;
+  if (live && days.some((d) => d.key === live)) return live;
+  return days.length ? days[0].key : "";
 }
 
 // The session that follows `active` in running order, or null.
@@ -412,6 +452,8 @@ function groupSchedule(items) {
   let curSec = null;
   items.forEach((item, index) => {
     const dayName = String(item.day ?? "").trim();
+    const dayDate = String(item.date ?? "").trim();
+    const dayKey = dayDate || dayName;
     let sesName = String(item.session ?? "").trim();
     let secName = String(item.section ?? "").trim();
     if (!sesName && secName) {
@@ -419,8 +461,8 @@ function groupSchedule(items) {
       sesName = secName;
       secName = "";
     }
-    if (!curDay || curDay.day !== dayName) {
-      curDay = { day: dayName, sessions: [] };
+    if (!curDay || curDay.key !== dayKey) {
+      curDay = { key: dayKey, day: dayName, date: dayDate, sessions: [] };
       days.push(curDay);
       curSes = null;
     }

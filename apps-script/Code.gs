@@ -6,7 +6,9 @@
  *   Schedule - header row defines the fields. Any columns work; these have
  *              special meaning (all optional except title):
  *                theatre  - groups items into independent schedules/tabs
- *                day      - groups items under day headings
+ *                day      - groups items into days; type real dates
+ *                           (recommended) to get "Wednesday 15 Jul"
+ *                           labels and automatic per-day views
  *                session  - groups consecutive rows into a timed session
  *                           (e.g. "Morning session")
  *                time     - the session's rough start time (fill it on
@@ -183,7 +185,16 @@ function readSchedule() {
     var item = {};
     for (var c = 0; c < headers.length; c++) {
       if (!headers[c]) continue;
-      item[headers[c]] = formatCell(values[r][c], headers[c], tz);
+      var raw = values[r][c];
+      if (headers[c] === 'day' && raw instanceof Date) {
+        // Real dates in the day column (recommended): a friendly label
+        // for display plus a machine-readable date so the frontend can
+        // build per-day views and detect "today".
+        item.day = Utilities.formatDate(raw, tz, 'EEEE d MMM');
+        item.date = Utilities.formatDate(raw, tz, 'yyyy-MM-dd');
+      } else {
+        item[headers[c]] = formatCell(raw, headers[c], tz);
+      }
     }
     if (String(item.title || '').trim() === '') continue; // skip blank rows
     item.theatre = String(item.theatre || '').trim();
@@ -195,6 +206,7 @@ function readSchedule() {
       var sameTheatre = item.theatre === String(prev.theatre || '');
       if (sameTheatre && 'day' in item && String(item.day || '').trim() === '') {
         item.day = prev.day;
+        item.date = prev.date;
       }
       var sameDay = String(item.day || '').trim() === String(prev.day || '').trim();
       if (sameTheatre && sameDay && 'session' in item && String(item.session || '').trim() === '') {
