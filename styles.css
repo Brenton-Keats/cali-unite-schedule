@@ -1,0 +1,731 @@
+/* -- Theme -------------------------------------------------------------
+   All colours/fonts live here so the event theme can be swapped by
+   editing variables only. */
+/* Palette taken from the Cali Unite campaign email: hot pink #f711b1,
+   black, white cards on a #f4f4f4 page. Brand font is proxima-nova
+   (loaded via Adobe Fonts if an embed kit is added to the HTML heads);
+   falls back to Open Sans/Helvetica as used in the email. */
+:root {
+  --bg: #f4f4f4;
+  --surface: #ffffff;
+  --surface-2: #f4f4f4;
+  --border: #e3e3e7;
+  --text: #000000;
+  --text-dim: #4d4d4d;
+  --accent: #f711b1;
+  --accent-contrast: #ffffff;
+  --now: #f711b1;
+  --danger: #d92d20;
+  --radius: 14px;
+  --font: "proxima-nova", "Proxima Nova", "Open Sans", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px 80px;
+}
+
+/* -- Header -- */
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 4px;
+}
+
+.app-header h1 {
+  margin: 0;
+  line-height: 0;
+}
+
+.app-header .logo {
+  height: 56px;
+  width: auto;
+  display: block;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.app-header .page-tag {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/* -- Announcement banner -- */
+.announcement {
+  display: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 10px 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.announcement.visible {
+  display: block;
+}
+
+/* -- Theatre tabs -- */
+.theatre-tabs {
+  display: none;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.theatre-tabs.visible {
+  display: flex;
+}
+
+.theatre-tabs button {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.theatre-tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* -- Hero (now / next / later) -- */
+.hero {
+  margin: 14px 0 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.hero-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.hero-card .label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.hero-card.now {
+  border-color: var(--now);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--now) 14%, var(--surface)),
+    var(--surface)
+  );
+}
+
+.hero-card.now .label {
+  color: var(--now);
+}
+
+.hero-card .title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.hero-card.now .title {
+  font-size: 1.5rem;
+}
+
+.hero-card .meta {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  margin-top: 3px;
+}
+
+.hero-sub {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.hero-sub .hero-card .title {
+  font-size: 1rem;
+}
+
+/* -- Schedule list -- */
+.day-group {
+  margin: 22px 0 8px;
+}
+
+.day-group h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin: 0 0 8px 4px;
+}
+
+/* -- Sessions & sections (day → session → section → items) -- */
+.session-group {
+  margin-bottom: 20px;
+}
+
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px 6px;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.session-header .name {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-header .time {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.session-header.current .name,
+.session-header.current .time {
+  color: var(--accent);
+}
+
+.session-header.past {
+  opacity: 0.6;
+}
+
+.section-subheader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section-subheader .name {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-subheader.current {
+  color: var(--accent);
+}
+
+.section-subheader.past {
+  opacity: 0.6;
+}
+
+/* Inline show/hide pill sitting beside section/session titles */
+.show-toggle {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* -- Withdrawn competitors -- */
+.schedule-item.withdrawn {
+  opacity: 0.55;
+}
+
+.schedule-item.withdrawn .title,
+.jump-item.withdrawn .title {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.wd-tag {
+  display: inline-block;
+  margin-left: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 0 5px;
+  vertical-align: 0.14em;
+  text-decoration: none;
+}
+
+/* Competitor-number badge shown before names */
+.comp-num {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: 8px;
+  padding: 0 7px;
+  font-weight: 700;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  vertical-align: 0.08em;
+}
+
+/* Section name + time shown above the item title in hero/admin cards */
+.hero-card .section-line,
+.admin-now .section-line {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+
+.hero-card.now .section-line,
+.admin-now .section-line {
+  color: var(--accent);
+}
+
+/* Second context line on the NOW card: the section within the session */
+.hero-card .section-line.sub {
+  font-size: 0.85rem;
+  margin-top: -2px;
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+
+.schedule-item {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  margin-bottom: 8px;
+}
+
+.schedule-item .time {
+  flex: 0 0 4.6em;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.schedule-item .body .title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.schedule-item .body .subtitle {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  margin-top: 2px;
+}
+
+.schedule-item.past {
+  opacity: 0.45;
+}
+
+.schedule-item.past .body .title {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.schedule-item.current {
+  border-color: var(--now);
+  background: color-mix(in srgb, var(--now) 12%, var(--surface));
+}
+
+.schedule-item.current .time {
+  color: var(--now);
+  font-weight: 700;
+}
+
+/* -- Status footer -- */
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 8px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.status-bar.error {
+  color: var(--danger);
+}
+
+/* -- Admin -- */
+.gate {
+  max-width: 420px;
+  margin: 12vh auto 0;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.gate h2 {
+  margin-top: 0;
+}
+
+.gate p {
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.gate input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1rem;
+  margin: 8px 0 12px;
+}
+
+.gate .error-msg,
+.toast {
+  color: var(--danger);
+  font-size: 0.9rem;
+  min-height: 1.2em;
+  margin: 4px 0;
+}
+
+/* In-progress markers: actions show as pending until the server confirms */
+@keyframes pending-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.pending-tag {
+  display: inline-block;
+  margin-left: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+  border-radius: 6px;
+  padding: 0 5px;
+  vertical-align: 0.14em;
+  animation: pending-pulse 1s ease-in-out infinite;
+}
+
+.wd-btn.pending {
+  color: var(--text-dim);
+  animation: pending-pulse 1s ease-in-out infinite;
+}
+
+.admin-now .pending-line {
+  margin-top: 6px;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  animation: pending-pulse 1s ease-in-out infinite;
+}
+
+/* Prominent failure banner on the admin panel - hard to miss */
+.error-banner {
+  background: var(--danger);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 10px 0;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 4px 16px rgba(217, 45, 32, 0.35);
+  cursor: pointer;
+}
+
+.error-banner .hint {
+  display: block;
+  font-weight: 500;
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.btn {
+  font-family: inherit;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn.big {
+  font-size: 1.15rem;
+  padding: 18px 20px;
+}
+
+.btn.full {
+  width: 100%;
+}
+
+.controls-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.admin-now {
+  background: var(--surface);
+  border: 1px solid var(--now);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 14px 0 4px;
+}
+
+.admin-now .label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--now);
+}
+
+.admin-now .title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.admin-now .meta {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  margin-top: 2px;
+}
+
+.admin-section {
+  margin-top: 26px;
+}
+
+.admin-section h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.admin-section textarea {
+  width: 100%;
+  min-height: 70px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+.announce-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.jump-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 8px;
+}
+
+.jump-item {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.wd-btn {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.jump-item.past,
+.jump-item.withdrawn {
+  opacity: 0.5;
+}
+
+.jump-item.current {
+  border-color: var(--now);
+  background: color-mix(in srgb, var(--now) 12%, var(--surface));
+}
+
+.jump-item .time {
+  flex: 0 0 4.6em;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.jump-item .subtitle {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.signout {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.signout button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+/* -- Loading state -- */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-overlay[hidden] {
+  display: none;
+}
+
+/* Solid card behind the spinner so it stays readable over whatever the
+   blurred content shows (e.g. the pink current-item highlight). */
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: 32px 44px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.spinner {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 8px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.blurred {
+  filter: blur(7px);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Soft elevation for white cards on the light page background */
+.hero-card,
+.schedule-item,
+.jump-item,
+.admin-now,
+.gate {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}

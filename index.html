@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cali Unite | Schedule</title>
+  <!-- If Cali Unite has an Adobe Fonts (Typekit) kit for proxima-nova,
+       paste its embed <link> here; the CSS falls back gracefully without it. -->
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/logo.png" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>
+        <img class="logo" src="assets/logo.png" alt="" />
+        <span id="event-name" class="sr-only">Cali Unite</span>
+      </h1>
+      <span class="page-tag">Live schedule</span>
+    </header>
+
+    <div id="announcement" class="announcement"></div>
+
+    <nav id="theatre-tabs" class="theatre-tabs" aria-label="Theatre"></nav>
+
+    <section id="hero" class="hero"></section>
+
+    <section id="schedule"></section>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay" hidden>
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <div>Loading schedule…</div>
+    </div>
+  </div>
+
+  <footer id="status-bar" class="status-bar">Loading…</footer>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

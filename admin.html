@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cali Unite | Schedule Admin</title>
+  <!-- If Cali Unite has an Adobe Fonts (Typekit) kit for proxima-nova,
+       paste its embed <link> here; the CSS falls back gracefully without it. -->
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/logo.png" />
+</head>
+<body>
+  <!-- Token gate: shown until a valid admin token is saved on this device -->
+  <div id="gate" class="gate" hidden>
+    <h2>Admin access</h2>
+    <p>Enter the admin code for this event. You only need to do this once on
+      this device - it stays signed in for the whole week.</p>
+    <form id="gate-form">
+      <input id="gate-token" type="password" placeholder="Admin code"
+             autocomplete="current-password" autofocus />
+      <div id="gate-error" class="error-msg"></div>
+      <button type="submit" class="btn primary full">Unlock</button>
+    </form>
+  </div>
+
+  <div id="panel" class="container" hidden>
+    <div id="error-banner" class="error-banner" hidden></div>
+    <header class="app-header">
+      <h1>
+        <img class="logo" src="assets/logo.png" alt="" />
+        <span id="event-name" class="sr-only">Cali Unite</span>
+      </h1>
+      <span class="page-tag">Admin</span>
+    </header>
+
+    <nav id="theatre-tabs" class="theatre-tabs" aria-label="Theatre"></nav>
+
+    <div id="admin-now" class="admin-now"></div>
+
+    <div class="controls-row">
+      <button id="btn-prev" class="btn big">← Back</button>
+      <button id="btn-next" class="btn big primary">Next →</button>
+    </div>
+    <section class="admin-section">
+      <h2>Announcement banner</h2>
+      <textarea id="announcement-input"
+        placeholder="e.g. Running 10 minutes late"></textarea>
+      <div class="announce-buttons">
+        <button id="btn-announce" class="btn primary">Post</button>
+        <button id="btn-announce-clear" class="btn">Clear banner</button>
+      </div>
+    </section>
+
+    <section class="admin-section">
+      <h2>Jump to item</h2>
+      <div id="jump-list"></div>
+    </section>
+
+    <div class="signout">
+      <button id="btn-signout">Sign out on this device</button>
+    </div>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay" hidden>
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <div>Loading schedule…</div>
+    </div>
+  </div>
+
+  <footer id="status-bar" class="status-bar" hidden>Loading…</footer>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

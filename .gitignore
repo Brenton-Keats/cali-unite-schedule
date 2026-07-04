@@ -1,0 +1,6 @@
+# Local dev config (Claude Code preview server)
+.claude/
+
+# OS junk
+.DS_Store
+Thumbs.db
