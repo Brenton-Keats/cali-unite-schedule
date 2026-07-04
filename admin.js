@@ -15,6 +15,7 @@ let pollTimer = null;
 // and overlays these until each request comes back.
 let pendingIndexOp = null; // {theatre, index} - target awaiting confirmation
 const pendingWdOps = new Map(); // "theatre::index" -> desired withdrawn bool
+let pendingSessionOp = null; // {theatre, key, name} - session switch in flight
 let pendingAnnouncements = 0;
 
 const PENDING_STAGE_LABEL = "Sending on stage";
@@ -36,6 +37,8 @@ const els = {
   announceClear: document.getElementById("btn-announce-clear"),
   jumpList: document.getElementById("jump-list"),
   signout: document.getElementById("btn-signout"),
+  sessionPicker: document.getElementById("session-picker"),
+  sessionSelect: document.getElementById("session-select"),
 };
 
 document.getElementById("event-name").textContent = window.CONFIG.EVENT_NAME;
@@ -162,6 +165,7 @@ async function runAction(payload) {
   let send = payload;
   let wdKey = null;
   let indexMarker = null;
+  let sessionMarker = null;
   if (
     payload.action === "advance" ||
     payload.action === "previous" ||
@@ -185,6 +189,18 @@ async function runAction(payload) {
   } else if (payload.action === "setWithdrawn") {
     wdKey = payload.theatre + "::" + payload.index;
     pendingWdOps.set(wdKey, !!payload.withdrawn);
+  } else if (payload.action === "setSession") {
+    send = {
+      action: "setSession",
+      theatre: payload.theatre,
+      session: payload.session,
+      index: payload.index,
+    };
+    sessionMarker = pendingSessionOp = {
+      theatre: payload.theatre,
+      key: payload.session,
+      name: payload.sessionName || "",
+    };
   } else if (payload.action === "setAnnouncement") {
     pendingAnnouncements += 1;
   }
@@ -216,7 +232,9 @@ async function runAction(payload) {
       if (pendingWdOps.get(wdKey) === !!payload.withdrawn) {
         pendingWdOps.delete(wdKey);
       }
-    } else if (pendingIndexOp === indexMarker) {
+    } else if (sessionMarker !== null) {
+      if (pendingSessionOp === sessionMarker) pendingSessionOp = null;
+    } else if (indexMarker !== null && pendingIndexOp === indexMarker) {
       pendingIndexOp = null;
     }
     render();
@@ -235,10 +253,22 @@ function currentIndex() {
   return t ? t.currentIndex : -1;
 }
 
+function activeKeyForCurrent() {
+  const t = state && state.theatres.find((x) => x.id === currentTheatre);
+  return (t && t.activeSession) || "";
+}
+
+function activeSessionForCurrent(items, effCi) {
+  return hasGrouping(items)
+    ? resolveActiveSession(items, activeKeyForCurrent(), effCi)
+    : null;
+}
+
 function render() {
   if (!state) return;
   document.getElementById("loading-overlay").hidden = true;
   renderTabs();
+  renderSessionPicker();
   renderNow();
   renderJumpList();
   els.prev.textContent = "← Back";
@@ -252,8 +282,48 @@ function render() {
   }
   const items = currentItems();
   const ci = currentIndex();
+  const eff = effectiveIndex(items, ci);
+  const active = activeSessionForCurrent(items, eff);
   els.prev.disabled = ci <= -1;
-  els.next.disabled = ci >= items.length;
+  // Once the active session is done, Next has nothing meaningful to do -
+  // the operator starts the next session from the picker instead.
+  els.next.disabled = active ? eff > active.lastIndex : ci >= items.length;
+}
+
+function renderSessionPicker() {
+  const items = currentItems();
+  const grouped = hasGrouping(items);
+  els.sessionPicker.hidden = !grouped;
+  if (!grouped) return;
+  const eff = effectiveIndex(items, currentIndex());
+  const active = resolveActiveSession(items, activeKeyForCurrent(), eff);
+  const pendingKey =
+    pendingSessionOp && pendingSessionOp.theatre === currentTheatre
+      ? pendingSessionOp.key
+      : null;
+  const selectedKey = pendingKey || (active ? sessionKeyOf(active) : "");
+  const byDay = new Map();
+  sessionsOf(items).forEach((s) => {
+    const day = s.day || "";
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(s);
+  });
+  let html = "";
+  byDay.forEach((list, day) => {
+    const opts = list
+      .map((s) => {
+        const key = sessionKeyOf(s);
+        const label =
+          (s.name || "Session") + (s.time ? ` (${s.time})` : "");
+        return `<option value="${escapeHtml(key)}"${
+          key === selectedKey ? " selected" : ""
+        }>${escapeHtml(label)}</option>`;
+      })
+      .join("");
+    html += day ? `<optgroup label="${escapeHtml(day)}">${opts}</optgroup>` : opts;
+  });
+  els.sessionSelect.innerHTML = html;
+  els.sessionSelect.disabled = !!pendingSessionOp;
 }
 
 function renderTabs() {

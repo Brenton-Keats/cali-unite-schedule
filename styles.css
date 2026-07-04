@@ -184,6 +184,10 @@ body {
   gap: 10px;
 }
 
+.hero-sub.single {
+  grid-template-columns: 1fr;
+}
+
 .hero-sub .hero-card .title {
   font-size: 1rem;
 }
@@ -442,6 +446,37 @@ body {
   font-size: 0.9rem;
   min-height: 1.2em;
   margin: 4px 0;
+}
+
+/* Admin active-session picker */
+.session-picker {
+  margin: 14px 0 4px;
+}
+
+.session-picker label {
+  display: block;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.session-picker select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.session-picker select:disabled {
+  animation: pending-pulse 1s ease-in-out infinite;
 }
 
 /* In-progress markers: actions show as pending until the server confirms */

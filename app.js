@@ -79,9 +79,16 @@ function render() {
   // All rendering works from the effective position, so a withdrawn
   // competitor is never presented as current anywhere.
   const ci = effectiveIndex(items, rawCi);
-  renderHero(items, ci);
-  renderSchedule(items, ci);
-  autoScroll(ci);
+  const activeKey = (theatre && theatre.activeSession) || "";
+  const active = hasGrouping(items)
+    ? resolveActiveSession(items, activeKey, ci)
+    : null;
+  // Once the active session is finished, nothing is "current" - the list
+  // must not highlight the next session's first item prematurely.
+  const highlightIdx = active && ci > active.lastIndex ? -1 : ci;
+  renderHero(items, ci, active);
+  renderSchedule(items, ci, highlightIdx);
+  autoScroll(highlightIdx);
 }
 
 function renderAnnouncement() {
@@ -149,27 +156,86 @@ function heroCard(label, item, extraClass, fallbackTitle, opts = {}) {
   </div>`;
 }
 
-function renderHero(items, ci) {
+// Hero cards are bound to the active session: On stage / Side stage / Up
+// next only ever show that session's competitors. As the session runs
+// dry the first empty slot becomes a "Next session" name card and any
+// further slot is dropped. `active` is null in flat (ungrouped) mode.
+function renderHero(items, ci, active) {
   const hero = document.getElementById("hero");
   if (!items.length) {
     hero.innerHTML = heroCard("Schedule", null, "", "Schedule coming soon");
     return;
   }
 
-  const grouped = hasGrouping(items);
-  // Flat-mode cards keep their day/time meta line. Grouped mode: NOW gets
-  // the full context (session · time, then section); Next/Later show the
-  // section only.
-  const flatMeta = (i) => (grouped ? "" : itemMeta(items[i]));
+  if (!active) {
+    renderFlatHero(items, ci);
+    return;
+  }
+
   const sectionOnlyCtx = (i) => {
-    if (!grouped) return null;
     const ctx = contextInfoFor(items, i);
     const section = ctx && (ctx.section || ctx.session);
     return section ? { section } : null;
   };
+  const inSession = (i) => i >= active.firstIndex && i <= active.lastIndex;
+  const sessionCtx = { session: active.name, time: active.time };
+  const finished = ci > active.lastIndex;
 
-  // ci is the effective index, so items[ci] is never withdrawn; Next and
-  // Later keep skipping withdrawn competitors from there.
+  let html;
+  const upcoming = [];
+  if (finished) {
+    html = heroCard("On stage", null, "now", "Session finished", {
+      context: sessionCtx,
+    });
+  } else {
+    let firstUpcomingFrom;
+    if (ci < active.firstIndex) {
+      html = heroCard("On stage", null, "now", "Starting soon", {
+        context: sessionCtx,
+      });
+      firstUpcomingFrom = active.firstIndex;
+    } else {
+      html = heroCard("On stage", items[ci], "now", "", {
+        context: contextInfoFor(items, ci),
+      });
+      firstUpcomingFrom = ci + 1;
+    }
+    const n1 = nextPresentIndex(items, firstUpcomingFrom);
+    if (n1 >= 0 && inSession(n1)) {
+      upcoming.push(n1);
+      const n2 = nextPresentIndex(items, n1 + 1);
+      if (n2 >= 0 && inSession(n2)) upcoming.push(n2);
+    }
+  }
+
+  const labels = ["Side stage", "Up next"];
+  const subCards = upcoming.map((idx, slot) =>
+    heroCard(labels[slot], items[idx], "", "", { context: sectionOnlyCtx(idx) })
+  );
+  // First empty slot announces the next session; further slots are dropped.
+  const nextSession = sessionAfter(items, active);
+  if (subCards.length < 2 && nextSession) {
+    const meta = [
+      nextSession.day !== active.day ? nextSession.day : "",
+      nextSession.time,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    subCards.push(`<div class="hero-card">
+      <div class="label">Next session</div>
+      <div class="title">${escapeHtml(nextSession.name || "Session")}</div>
+      ${meta ? `<div class="meta">${escapeHtml(meta)}</div>` : ""}
+    </div>`);
+  }
+  if (subCards.length) {
+    html += `<div class="hero-sub${subCards.length === 1 ? " single" : ""}">${subCards.join("")}</div>`;
+  }
+  hero.innerHTML = html;
+}
+
+// Original behaviour for sheets with no session/section grouping.
+function renderFlatHero(items, ci) {
+  const hero = document.getElementById("hero");
   const finished = ci >= items.length;
   const nowIdx = ci >= 0 && !finished ? ci : -1;
   const nextFrom = finished ? items.length : nowIdx >= 0 ? nowIdx + 1 : 0;
@@ -183,40 +249,33 @@ function renderHero(items, ci) {
     html = heroCard("On stage", null, "now", "Starting soon");
   } else {
     html = heroCard("On stage", items[nowIdx], "now", "", {
-      context: grouped ? contextInfoFor(items, nowIdx) : null,
-      meta: flatMeta(nowIdx),
+      meta: itemMeta(items[nowIdx]),
     });
   }
 
   const subCards = [];
   if (nextIdx >= 0) {
     subCards.push(
-      heroCard("Side stage", items[nextIdx], "", "", {
-        context: sectionOnlyCtx(nextIdx),
-        meta: flatMeta(nextIdx),
-      })
+      heroCard("Side stage", items[nextIdx], "", "", { meta: itemMeta(items[nextIdx]) })
     );
   }
   if (laterIdx >= 0) {
     subCards.push(
-      heroCard("Up next", items[laterIdx], "", "", {
-        context: sectionOnlyCtx(laterIdx),
-        meta: flatMeta(laterIdx),
-      })
+      heroCard("Up next", items[laterIdx], "", "", { meta: itemMeta(items[laterIdx]) })
     );
   }
   if (subCards.length) {
-    html += `<div class="hero-sub">${subCards.join("")}</div>`;
+    html += `<div class="hero-sub${subCards.length === 1 ? " single" : ""}">${subCards.join("")}</div>`;
   }
   hero.innerHTML = html;
 }
 
-function renderSchedule(items, ci) {
+function renderSchedule(items, ci, highlightIdx) {
   const container = document.getElementById("schedule");
   if (hasGrouping(items)) {
-    container.innerHTML = renderGroupedList(items, ci);
+    container.innerHTML = renderGroupedList(items, ci, highlightIdx);
   } else {
-    container.innerHTML = renderFlatList(items, ci);
+    container.innerHTML = renderFlatList(items, ci, highlightIdx);
   }
   container.querySelectorAll(".show-toggle").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -228,13 +287,13 @@ function renderSchedule(items, ci) {
   });
 }
 
-function scheduleRow(item, index, ci, withTime) {
+function scheduleRow(item, index, ci, withTime, highlightIdx) {
   const wd = isWithdrawn(item);
   const cls = wd
     ? "withdrawn"
     : index < ci
       ? "past"
-      : index === ci
+      : index === highlightIdx
         ? "current"
         : "upcoming";
   return `<div class="schedule-item ${cls}" data-index="${index}">
@@ -246,11 +305,11 @@ function scheduleRow(item, index, ci, withTime) {
   </div>`;
 }
 
-function renderFlatList(items, ci) {
+function renderFlatList(items, ci, highlightIdx) {
   return groupByDay(items)
     .map((group) => {
       const rows = group.entries
-        .map(({ item, index }) => scheduleRow(item, index, ci, true))
+        .map(({ item, index }) => scheduleRow(item, index, ci, true, highlightIdx))
         .join("");
       const heading = group.day ? `<h2>${escapeHtml(group.day)}</h2>` : "";
       return `<div class="day-group">${heading}${rows}</div>`;
@@ -262,11 +321,11 @@ function renderFlatList(items, ci) {
 // subheadings → one row per item. Past and future sessions collapse
 // behind "Show more" buttons; the current session is always expanded,
 // with its completed items tucked behind their own toggle.
-function renderGroupedList(items, ci) {
+function renderGroupedList(items, ci, highlightIdx) {
   return groupSchedule(items)
     .map((dayGroup) => {
       const sessions = dayGroup.sessions
-        .map((ses) => renderSession(ses, ci))
+        .map((ses) => renderSession(ses, ci, highlightIdx))
         .join("");
       const heading = dayGroup.day ? `<h2>${escapeHtml(dayGroup.day)}</h2>` : "";
       return `<div class="day-group">${heading}${sessions}</div>`;
@@ -282,7 +341,7 @@ function toggleBtn(key, label) {
 // their header row; the current section stays open with its completed
 // rows behind the toggle. The toggle is returned separately from the
 // header so an unnamed section can lend it to the session header line.
-function sectionBlock(sec, ci) {
+function sectionBlock(sec, ci, highlightIdx) {
   const first = sec.entries[0].index;
   const last = sec.entries[sec.entries.length - 1].index;
   const isCurrent = ci >= first && ci <= last;
@@ -305,9 +364,12 @@ function sectionBlock(sec, ci) {
 
   const rows = sec.entries
     .filter(visible)
-    .map(({ item, index }) => scheduleRow(item, index, ci, false))
+    .map(({ item, index }) => scheduleRow(item, index, ci, false, highlightIdx))
     .join("");
-  const cls = isCurrent ? " current" : isPast ? " past" : "";
+  // Pink "live" styling follows the highlight, which is suppressed once
+  // the active session has finished.
+  const isLive = highlightIdx >= first && highlightIdx <= last;
+  const cls = isLive ? " current" : isPast ? " past" : "";
   const header = sec.name
     ? `<div class="section-subheader${cls}">
         <span class="name">${escapeHtml(sec.name)}</span>
@@ -317,10 +379,10 @@ function sectionBlock(sec, ci) {
   return { header, btn, rows };
 }
 
-function renderSession(ses, ci) {
+function renderSession(ses, ci, highlightIdx) {
   const lastIndex = ses.firstIndex + ses.count - 1;
   const headerCls =
-    ci >= ses.firstIndex && ci <= lastIndex
+    highlightIdx >= ses.firstIndex && highlightIdx <= lastIndex
       ? " current"
       : ci > lastIndex
         ? " past"
@@ -329,7 +391,7 @@ function renderSession(ses, ci) {
   let hoistedBtn = "";
   const body = ses.sections
     .map((sec) => {
-      const block = sectionBlock(sec, ci);
+      const block = sectionBlock(sec, ci, highlightIdx);
       if (!sec.name) {
         // No subheader to host the toggle - hoist it to the session header.
         hoistedBtn = block.btn || hoistedBtn;

@@ -36,6 +36,8 @@ const DEMO_STATE = {
   stateMap: {
     "currentIndex::Main Stage": 2,
     "currentIndex::Studio": 0,
+    "activeSession::Main Stage": "Monday|Morning session",
+    "activeSession::Studio": "",
     announcement: "Demo mode - configure API_URL in config.js to go live.",
     lastUpdated: new Date().toISOString(),
   },
@@ -57,6 +59,7 @@ function demoBuildState() {
         Number(DEMO_STATE.stateMap["currentIndex::" + id] ?? -1),
         schedule.filter((it) => (it.theatre || DEFAULT_THEATRE) === id).length
       ),
+      activeSession: DEMO_STATE.stateMap["activeSession::" + id] || "",
     })),
     announcement: DEMO_STATE.stateMap.announcement || "",
     lastUpdated: DEMO_STATE.stateMap.lastUpdated || "",
@@ -75,6 +78,12 @@ function demoApplyAction(body) {
     if (body.action === "setWithdrawn") {
       const item = items[Number(body.index)];
       if (item) item.withdrawn = body.withdrawn ? "yes" : "";
+    } else if (body.action === "setSession") {
+      DEMO_STATE.stateMap["activeSession::" + theatre] = String(body.session || "");
+      DEMO_STATE.stateMap["currentIndex::" + theatre] = clampIndex(
+        Number(body.index),
+        items.length
+      );
     } else {
       const key = "currentIndex::" + theatre;
       let idx = Number(DEMO_STATE.stateMap[key] ?? -1);
@@ -215,6 +224,51 @@ function normalizeTime(value) {
   const suffix = hours >= 12 ? "PM" : "AM";
   hours = hours % 12 || 12;
   return hours + ":" + m[3] + " " + suffix;
+}
+
+// -- Active session --------------------------------------------------------
+// The hero cards are bound to one "active" session per theatre, selected
+// from the admin page and stored in State as "day|name". When unset (or
+// stale after sheet edits) it falls back to the session containing the
+// effective pointer.
+
+function sessionsOf(items) {
+  const out = [];
+  groupSchedule(items).forEach((day) => {
+    day.sessions.forEach((ses) => {
+      out.push({
+        ...ses,
+        day: day.day,
+        lastIndex: ses.firstIndex + ses.count - 1,
+      });
+    });
+  });
+  return out;
+}
+
+function sessionKeyOf(ses) {
+  return ses.day + "|" + ses.name;
+}
+
+function resolveActiveSession(items, activeKey, effCi) {
+  const sessions = sessionsOf(items);
+  if (!sessions.length) return null;
+  if (activeKey) {
+    const stored = sessions.find((s) => sessionKeyOf(s) === activeKey);
+    if (stored) return stored;
+  }
+  const byPointer = sessions.find(
+    (s) => effCi >= s.firstIndex && effCi <= s.lastIndex
+  );
+  if (byPointer) return byPointer;
+  return effCi < 0 ? sessions[0] : sessions[sessions.length - 1];
+}
+
+// The session that follows `active` in running order, or null.
+function sessionAfter(items, active) {
+  const sessions = sessionsOf(items);
+  const i = sessions.findIndex((s) => s.firstIndex === active.firstIndex);
+  return i >= 0 ? sessions[i + 1] || null : null;
 }
 
 // Where the pointer lands after a Next/Back step, skipping withdrawn
